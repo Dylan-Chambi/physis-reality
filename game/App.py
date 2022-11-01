@@ -52,5 +52,7 @@ class App:
             keys = pygame.key.get_pressed()
 
             self.update(keys)
+            # fps text
+            pygame.display.set_caption(f"FPS: {self.clock.get_fps():.2f}")
 
         pygame.quit()

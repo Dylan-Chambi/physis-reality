@@ -14,16 +14,12 @@ class Item(Sprite):
         self.body.position: tuple =(x, y)
         # self.body.velocity: tuple = (vx, vy)
         # self.body.angular_velocity: float = 0
-        # self.body.angle: float = theta
-        # self.theta: float = theta
         self.shape: pymunk.Shape = pymunk.Poly(self.body, self.vertices)
         self.shape.mass: float = 1
         self.shape.color: tuple = bg_color
         self.shape.elasticity = 0.4
         self.shape.friction = 0.5
         # self.shape.collision_type = 2
-        # self.item_scale_x: float = scale
-        # self.item_scale_y: float = scale
         self.bg_color: tuple = bg_color
 
     def update(self, event_keys: list) -> None:

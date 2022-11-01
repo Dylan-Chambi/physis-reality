@@ -26,11 +26,6 @@ class ItemRect(Item):
             self.surf = pygame.Surface((width, heigth), pygame.SRCALPHA).convert_alpha()
             self.surf.fill(self.bg_color)
             self.rect = self.surf.get_rect(center=(x, y))
-        
-        # self.surf.set_colorkey((0, 0, 0), pygame.RLEACCEL)
-        # self.rect.center = (x, y)
-        # self.initial_x = self.rect.x
-        # self.initial_y = self.rect.y
 
     def update(self, event_keys: list, scene):
         super().update(event_keys)
