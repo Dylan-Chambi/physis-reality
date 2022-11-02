@@ -12,6 +12,7 @@ class App:
         self.height = screen_height
         self.bg_color = bg_color
         self.fps = fps
+        self.dt = 1 / fps
         self.show_camera = show_camera
         pygame.init()
         self.screen = pygame.display.set_mode([self.width, self.height])
@@ -42,12 +43,12 @@ class App:
         self.is_running = True
         while self.is_running:
             for event in pygame.event.get():
-                self.scene.on_event(event)
                 if event.type == pygame.QUIT:
                     self.is_running = False
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         self.is_running = False
+                self.scene.on_event(event)
 
             keys = pygame.key.get_pressed()
 

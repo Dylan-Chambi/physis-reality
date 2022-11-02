@@ -27,8 +27,8 @@ class ItemRect(Item):
             self.surf.fill(self.bg_color)
             self.rect = self.surf.get_rect(center=(x, y))
 
-    def update(self, event_keys: list, scene):
-        super().update(event_keys)
+    def update(self, event_keys: list, scene, dt):
+        super().update(event_keys, scene, dt)
         self.rect.x = self.body.position.x
         self.rect.y = self.body.position.y
         self.rect.center = (self.body.position.x, self.body.position.y)

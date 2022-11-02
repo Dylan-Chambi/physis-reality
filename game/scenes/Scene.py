@@ -11,6 +11,7 @@ class Scene:
         self.bg_color: tuple = bg_color
         self.static_items = pygame.sprite.Group()
         self.dynamic_items = pygame.sprite.Group()
+        self.interactive_item = pygame.sprite.Group()
         if background_img is None:
             self.background_img = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
             self.background_img.fill(self.bg_color)
@@ -25,6 +26,10 @@ class Scene:
     def add_dynamic_item(self, item: Item) -> None:
         self.item_list.append(item)
         self.dynamic_items.add(item)
+
+    def add_interactive_item(self, item: Item) -> None:
+        self.item_list.append(item)
+        self.interactive_item.add(item)
     
     def pre_loads(self) -> None:
         pass
@@ -34,11 +39,10 @@ class Scene:
         screen.blit(self.background_img, (0, 0))
         for item in self.item_list:
             item.draw_in_screen()
-            item.update(pressed_keys, self)
+            item.update(pressed_keys, self, self.app.dt)
 
 
 
     def on_event(self, event: pygame.event) -> None:
-        pass
-        # for player in self.players:
-        #     player.on_event(event)
+        for item in self.interactive_item:
+            item.on_event(event)

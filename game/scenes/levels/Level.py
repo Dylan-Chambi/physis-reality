@@ -2,6 +2,8 @@ import mediapipe as mp
 import cv2
 import pygame
 import math
+import asyncio
+import threading
 import pymunk
 import pymunk.pygame_util
 from game.items.dynamicItems.BuildItem import BuildItem
@@ -17,7 +19,8 @@ mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 
 
-USE_CAMERA = False
+USE_CAMERA = True
+DRAW_PYMUNK = False
 
 def convert_opencv_to_pygame(img):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -37,6 +40,7 @@ class Level(Scene):
         self.show_camera = self.app.show_camera
         if USE_CAMERA:
             self.hands = mp_hands.Hands(
+                max_num_hands=1,
                 min_detection_confidence=0.5,
                 min_tracking_confidence=0.5)
             self.cap = cv2.VideoCapture(0)
@@ -45,55 +49,58 @@ class Level(Scene):
         self.height = self.app.height
         self.space = pymunk.Space()
         self.space.gravity = (0, 981)
-        self.draw_options = pymunk.pygame_util.DrawOptions(self.screen)
+        self.frame_count = 0
+        self.index_finger = None
+        self.thumb_finger = None
+        self.thread = None
 
-
-        # self.line_body = pymunk.Body(body_type=pymunk.Body.KINEMATIC)
-        # self.line_shape = pymunk.Segment(self.line_body, (0, 0), (500, 500), 5)
-        # self.line_shape.elasticity = 0.95
-        # self.line_shape.friction = 0.9
-        # self.space.add(self.line_body, self.line_shape)
+        if DRAW_PYMUNK:
+            self.draw_options = pymunk.pygame_util.DrawOptions(self.screen)
 
 
     def process_frame(self, frame):
+        pass
         # improve performance
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame.flags.writeable = False
+        # resize frame to improve performance
+        frame = cv2.resize(frame, (640, 480))
         results = self.hands.process(frame)
+        
         if not results.multi_hand_landmarks:
-            if self.show_camera:
-                self.screen.blit(convert_opencv_to_pygame(frame), (0, 0))
+            self.index_finger = None
+            self.thumb_finger = None
             return
-        # out = frame.copy()
+
+        self.index_finger = results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
+        self.thumb_finger = results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.THUMB_TIP]
 
 
-        # for hand_landmarks in results.multi_hand_landmarks:
-        #     mp_drawing.draw_landmarks(
-        #         out,
-        #         hand_landmarks,
-        #         mp_hands.HAND_CONNECTIONS,
-        #         mp_drawing_styles.get_default_hand_landmarks_style(),
-        #         mp_drawing_styles.get_default_hand_connections_style()
-        #     )
 
-        middle_finger = results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.MIDDLE_FINGER_TIP]
-        index_finger = results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
-        thumb_finger = results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.THUMB_TIP]
 
-        # if self.show_camera:
-        #     self.screen.blit(convert_opencv_to_pygame(out), (0, 0))
 
-        pygame.draw.circle(self.screen, (255, 255, 0), (-middle_finger.x * self.width + self.width, middle_finger.y * self.height), 10)
-        pygame.draw.circle(self.screen, (255, 0, 0), (-index_finger.x * self.width + self.width, index_finger.y * self.height), 10)
-        pygame.draw.circle(self.screen, (0, 255, 0), (-thumb_finger.x * self.width + self.width, thumb_finger.y * self.height), 10)
+    def draw_frame(self):
+        if self.index_finger is not None and self.thumb_finger is not None:
+            #pygame.draw.circle(self.screen, (255, 255, 0), (-middle_finger.x * self.width + self.width, middle_finger.y * self.height), 10)
+            pygame.draw.circle(self.screen, (255, 255, 0), (-self.index_finger.x * self.width + self.width, self.index_finger.y * self.height), 10)
+            pygame.draw.circle(self.screen, (255, 255, 0), (-self.thumb_finger.x * self.width + self.width, self.thumb_finger.y * self.height), 10)
 
-        # distance = math.sqrt((index_finger.x - thumb_finger.x) ** 2 + (index_finger.y - thumb_finger.y) ** 2 + (index_finger.z - thumb_finger.z) ** 2)
-        # distance2 = math.sqrt((middle_finger.x - thumb_finger.x) ** 2 + (middle_finger.y - thumb_finger.y) ** 2 + (middle_finger.z - thumb_finger.z) ** 2)
+            # distance = math.sqrt((index_finger.x - thumb_finger.x) ** 2 + (index_finger.y - thumb_finger.y) ** 2 + (index_finger.z - thumb_finger.z) ** 2)
+            # distance2 = math.sqrt((middle_finger.x - thumb_finger.x) ** 2 + (middle_finger.y - thumb_finger.y) ** 2 + (middle_finger.z - thumb_finger.z) ** 2)
 
     def pre_loads(self) -> None:
-        semicircle = SemicirlcleLine(500, 500, 50, 5, pymunk.Body.STATIC)
-        self.space.add(semicircle.body, semicircle.shape)
-        pass
+        semicircle = SemicirlcleLine(SCREEN_WIDTH/2, 400, 300, 200, 10, pymunk.Body.KINEMATIC)
+        self.add_interactive_item(semicircle)
+        self.thread = threading.Thread(target=self.worker)
+        self.thread.start()
+
+
+    def worker(self):
+        new_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(new_loop)
+        new_loop.run_until_complete(self.capture())
+
+
         
 
     def add_static_item(self, item):
@@ -104,12 +111,24 @@ class Level(Scene):
         super().add_dynamic_item(item)
         self.space.add(item.body, item.shape)
 
+    def add_interactive_item(self, item) -> None:
+        super().add_interactive_item(item)
+        self.space.add(*item.body, *item.shape)
+    
     def update(self, pressed_keys: list) -> None:
         super().update(pressed_keys)
-        self.space.debug_draw(self.draw_options)
+        if DRAW_PYMUNK:
+            self.space.debug_draw(self.draw_options)
         if USE_CAMERA:
-            ret, frame = self.cap.read()
-            self.process_frame(frame)
+            self.draw_frame()
+        #     # Capture a frame each 2 frames
+
+        #     if self.frame_count % 3 == 0:
+        #         ret, self.frame = self.cap.read()
+
+        #     if self.frame is not None:
+        #         self.process_frame(self.frame)
+        #     self.frame_count += 1
 
         #move line
         # self.line_body.position = (self.line_body.position[0] + 1, self.line_body.position[1])
@@ -123,7 +142,16 @@ class Level(Scene):
         fps = self.app.clock.get_fps()
         if fps > 0:
             self.space.step(1 / fps)
-        
+            self.app.dt = 1 / fps
+
+
+    async def capture(self):
+        while self.app.is_running:
+            if USE_CAMERA:
+                # Capture a frame each 2 frames
+                ret, self.frame = self.cap.read()
+                if self.frame is not None:
+                    self.process_frame(self.frame)
 
     def on_event(self, event: pygame.event) -> None:
         super().on_event(event)
@@ -132,3 +160,8 @@ class Level(Scene):
             if event.button == 1:
                 pos = pygame.mouse.get_pos()
                 self.add_dynamic_item(BuildItem(pos[0], pos[1], 50, 50))
+        if event.type == pygame.QUIT:
+            self.thread.join()
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                self.thread.join()

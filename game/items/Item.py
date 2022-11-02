@@ -22,7 +22,7 @@ class Item(Sprite):
         # self.shape.collision_type = 2
         self.bg_color: tuple = bg_color
 
-    def update(self, event_keys: list) -> None:
+    def update(self, event_keys: list, scene, dt):
         pass
 
     def draw_in_screen(self, screen: pygame.Surface) -> None:
