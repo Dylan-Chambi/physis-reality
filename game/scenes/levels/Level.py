@@ -20,7 +20,7 @@ mp_drawing_styles = mp.solutions.drawing_styles
 
 
 USE_CAMERA = True
-DRAW_PYMUNK = False
+DRAW_PYMUNK = True
 
 def convert_opencv_to_pygame(img):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -40,7 +40,7 @@ class Level(Scene):
         self.show_camera = self.app.show_camera
         if USE_CAMERA:
             self.hands = mp_hands.Hands(
-                max_num_hands=1,
+                max_num_hands=2,
                 min_detection_confidence=0.5,
                 min_tracking_confidence=0.5)
             self.cap = cv2.VideoCapture(0)
@@ -50,9 +50,12 @@ class Level(Scene):
         self.space = pymunk.Space()
         self.space.gravity = (0, 981)
         self.frame_count = 0
-        self.index_finger = None
-        self.thumb_finger = None
+        self.right_fingers = []
+        self.right_thumb_finger = None
+        self.left_wrist = None
+        self.left_middle_finger = None
         self.thread = None
+        self.container = None
 
         if DRAW_PYMUNK:
             self.draw_options = pymunk.pygame_util.DrawOptions(self.screen)
@@ -63,36 +66,91 @@ class Level(Scene):
         # improve performance
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame.flags.writeable = False
-        # resize frame to improve performance
-        frame = cv2.resize(frame, (640, 480))
         results = self.hands.process(frame)
         
         if not results.multi_hand_landmarks:
-            self.index_finger = None
-            self.thumb_finger = None
+            self.right_fingers = []
+            self.right_thumb_finger = None
+            self.left_wrist = None
+            self.left_middle_finger = None
             return
 
-        self.index_finger = results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
-        self.thumb_finger = results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.THUMB_TIP]
+        index_finger1= results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
+        thumb_finger1 = results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.THUMB_TIP]
+        middle_finger1 = results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.MIDDLE_FINGER_TIP]
+        ring_finger1 = results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.RING_FINGER_TIP]
+        pinky_finger1 = results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.PINKY_TIP]
+        wrist1 = results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.WRIST]
 
+        
+        if len(results.multi_hand_landmarks) > 1:
+            index_finger2 = results.multi_hand_landmarks[1].landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
+            thumb_finger2 = results.multi_hand_landmarks[1].landmark[mp_hands.HandLandmark.THUMB_TIP]
+            middle_finger2 = results.multi_hand_landmarks[1].landmark[mp_hands.HandLandmark.MIDDLE_FINGER_TIP]
+            ring_finger2 = results.multi_hand_landmarks[1].landmark[mp_hands.HandLandmark.RING_FINGER_TIP]
+            pinky_finger2 = results.multi_hand_landmarks[1].landmark[mp_hands.HandLandmark.PINKY_TIP]
+            wrist2 = results.multi_hand_landmarks[1].landmark[mp_hands.HandLandmark.WRIST]
 
+        
+        if results.multi_handedness[0].classification[0].label == "Left":
+            self.right_fingers = [index_finger1, middle_finger1, ring_finger1, pinky_finger1]
+            self.right_thumb_finger = thumb_finger1
+            self.left_wrist = None
+            self.left_middle_finger = None
 
+        if results.multi_handedness[0].classification[0].label == "Right":
+            self.left_wrist = wrist1
+            self.left_middle_finger = middle_finger1
+            self.right_fingers = []
+            self.right_thumb_finger = None
 
+        if len(results.multi_hand_landmarks) > 1:
+            if results.multi_handedness[1].classification[0].label == "Left":
+                self.right_fingers = [index_finger2, middle_finger2, ring_finger2, pinky_finger2]
+                self.right_thumb_finger = thumb_finger2
+
+        if len(results.multi_hand_landmarks) > 1:
+            if results.multi_handedness[1].classification[0].label == "Right":
+                self.left_wrist = wrist2
+                self.left_middle_finger = middle_finger2
+        
 
     def draw_frame(self):
-        if self.index_finger is not None and self.thumb_finger is not None:
-            #pygame.draw.circle(self.screen, (255, 255, 0), (-middle_finger.x * self.width + self.width, middle_finger.y * self.height), 10)
-            pygame.draw.circle(self.screen, (255, 255, 0), (-self.index_finger.x * self.width + self.width, self.index_finger.y * self.height), 10)
-            pygame.draw.circle(self.screen, (255, 255, 0), (-self.thumb_finger.x * self.width + self.width, self.thumb_finger.y * self.height), 10)
+        if self.right_thumb_finger is not None and len(self.right_fingers) > 0:
+            pygame.draw.circle(self.screen, (255, 255, 0), (-self.right_thumb_finger.x * self.width + self.width, self.right_thumb_finger.y * self.height), 10)
+            center_point_x = self.right_fingers[0].x
+            center_point_y = self.right_fingers[0].y
+            for i in range(1, len(self.right_fingers)):
+                center_point_x += self.right_fingers[i].x
+                center_point_y += self.right_fingers[i].y
+            center_point_x /= len(self.right_fingers)
+            center_point_y /= len(self.right_fingers)
+            pygame.draw.circle(self.screen, (255, 0, 0), (-center_point_x * self.width + self.width, center_point_y * self.height), 10)
+    
 
+        if self.left_wrist is not None and self.left_middle_finger is not None:
+            # calculate angle
+            angle = math.atan2(self.left_middle_finger.y - self.left_wrist.y, self.left_middle_finger.x - self.left_wrist.x)
+            angle = math.degrees(angle)
+            angle_threshold = 20
+            if angle > 0 and angle < 180 - angle_threshold:
+                angle = 180 - angle_threshold
+            if angle < 0 and angle > -180 + angle_threshold:
+                angle = -180 + angle_threshold
+            angle = -angle + 180
+            self.container.angle = angle
+
+            # pygame.draw.line(self.screen, (255, 255, 0), (-self.left_wrist.x * self.width + self.width, self.left_wrist.y * self.height), (-self.left_middle_finger.x * self.width + self.width, self.left_middle_finger.y * self.height), 5)
             # distance = math.sqrt((index_finger.x - thumb_finger.x) ** 2 + (index_finger.y - thumb_finger.y) ** 2 + (index_finger.z - thumb_finger.z) ** 2)
             # distance2 = math.sqrt((middle_finger.x - thumb_finger.x) ** 2 + (middle_finger.y - thumb_finger.y) ** 2 + (middle_finger.z - thumb_finger.z) ** 2)
 
     def pre_loads(self) -> None:
-        semicircle = SemicirlcleLine(SCREEN_WIDTH/2, 400, 300, 200, 10, pymunk.Body.KINEMATIC)
-        self.add_interactive_item(semicircle)
-        self.thread = threading.Thread(target=self.worker)
-        self.thread.start()
+        self.container = SemicirlcleLine(SCREEN_WIDTH/2, 400, 300, 200, 10, pymunk.Body.KINEMATIC)
+        self.add_interactive_item(self.container)
+
+        if USE_CAMERA:
+            self.thread = threading.Thread(target=self.worker)
+            self.thread.start()
 
 
     def worker(self):
@@ -121,23 +179,6 @@ class Level(Scene):
             self.space.debug_draw(self.draw_options)
         if USE_CAMERA:
             self.draw_frame()
-        #     # Capture a frame each 2 frames
-
-        #     if self.frame_count % 3 == 0:
-        #         ret, self.frame = self.cap.read()
-
-        #     if self.frame is not None:
-        #         self.process_frame(self.frame)
-        #     self.frame_count += 1
-
-        #move line
-        # self.line_body.position = (self.line_body.position[0] + 1, self.line_body.position[1])
-        # if self.line_body.position[0] > self.width:
-        #     self.line_body.position = (0, 0)
-        
-            
-
-
 
         fps = self.app.clock.get_fps()
         if fps > 0:
@@ -147,11 +188,9 @@ class Level(Scene):
 
     async def capture(self):
         while self.app.is_running:
-            if USE_CAMERA:
-                # Capture a frame each 2 frames
-                ret, self.frame = self.cap.read()
-                if self.frame is not None:
-                    self.process_frame(self.frame)
+            ret, self.frame = self.cap.read()
+            if self.frame is not None:
+                self.process_frame(self.frame)
 
     def on_event(self, event: pygame.event) -> None:
         super().on_event(event)

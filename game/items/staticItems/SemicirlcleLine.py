@@ -41,6 +41,13 @@ class SemicirlcleLine(Sprite):
 
     
     def update(self, event_keys: list, scene, dt):
+        for i in range(len(self.points) - 1):
+            self.body[i].angle = radians(self.angle)
+    
+        for i in range(len(self.points)):
+            self.points[i] = (self.radio_x * cos(radians(self.angle)) * cos(radians(i * (180 / (len(self.points) - 1)))) - self.radio_y * sin(radians(self.angle)) * sin(radians(i * (180 / (len(self.points) - 1)))), self.radio_x * sin(radians(self.angle)) * cos(radians(i * (180 / (len(self.points) - 1)))) + self.radio_y * cos(radians(self.angle)) * sin(radians(i * (180 / (len(self.points) - 1)))))
+
+
         if event_keys[pygame.K_RIGHT]:
             if self.angle < 45:
                 self.angle += 50 * dt
@@ -49,8 +56,6 @@ class SemicirlcleLine(Sprite):
             
                 for i in range(len(self.points)):
                     self.points[i] = (self.radio_x * cos(radians(self.angle)) * cos(radians(i * (180 / (len(self.points) - 1)))) - self.radio_y * sin(radians(self.angle)) * sin(radians(i * (180 / (len(self.points) - 1)))), self.radio_x * sin(radians(self.angle)) * cos(radians(i * (180 / (len(self.points) - 1)))) + self.radio_y * cos(radians(self.angle)) * sin(radians(i * (180 / (len(self.points) - 1)))))
-
-
 
         if event_keys[pygame.K_LEFT]:
             if self.angle > -45:
