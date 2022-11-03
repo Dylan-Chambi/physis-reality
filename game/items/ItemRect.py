@@ -12,20 +12,16 @@ class ItemRect(Item):
             (width/2, -heigth/2),
             (width/2, heigth/2),
             (-width/2, heigth/2)
-            # (x + width / 2, y + heigth / 2),
-            # (x + width / 2, y - heigth / 2),
-            # (x - width / 2, y - heigth / 2),
-            # (x - width / 2, y + heigth / 2)
         ]
         super().__init__(vertices_array, body, x, y, 0, 0, scale, theta, bg_color=bg_color, img=img, img_width=width, img_height=heigth)
+        self.width = width
+        self.heigth = heigth
 
     def update(self, event_keys: list, scene, dt):
         super().update(event_keys, scene, dt)
-        pass
         
         
     
 
     def draw_in_screen(self) -> None:
-        screen = pygame.display.get_surface()
-        # screen.blit(self.surf, self.rect)
+        super().draw_in_screen()

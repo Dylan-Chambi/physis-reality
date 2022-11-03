@@ -37,19 +37,18 @@ class Item(Sprite):
         self.rect.x = self.body.position.x
         self.rect.y = self.body.position.y
         self.rect.center = (self.body.position.x, self.body.position.y)
-        if self.img is not None:
-            rotated_surf = pygame.transform.rotate(self.surf, -degrees(self.body.angle))
-            rotated_rect = rotated_surf.get_rect(center=self.rect.center)
-            screen = pygame.display.get_surface()
-            screen.blit(rotated_surf, rotated_rect)
 
     def draw_in_screen(self) -> None:
         new_points_rotated = [self.body.local_to_world(self.vertices[i]) for i in range(len(self.vertices))]
 
-
         if self.img is None:
             screen = pygame.display.get_surface()
             pygame.draw.polygon(screen, self.bg_color, new_points_rotated)
+        else:
+            rotated_surf = pygame.transform.rotate(self.surf, -degrees(self.body.angle))
+            rotated_rect = rotated_surf.get_rect(center=self.rect.center)
+            screen = pygame.display.get_surface()
+            screen.blit(rotated_surf, rotated_rect)
 
     def transform(self, t_matrix):
         vert_list = [[v[0], v[1], 1] for v in self.vertices] 

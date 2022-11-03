@@ -37,9 +37,6 @@ class Scene:
     def update(self, pressed_keys: list) -> None:
         screen = pygame.display.get_surface()
         screen.blit(self.background_img, (0, 0))
-        for item in self.item_list:
-            item.draw_in_screen()
-            item.update(pressed_keys, self, self.app.dt)
 
 
 

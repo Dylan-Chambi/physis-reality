@@ -8,7 +8,7 @@ from game.items.Item import Item
 from game.items.ItemRect import ItemRect
 
 class Container(Sprite):
-    def __init__(self, x: int, y: int, width: int, height: int, body: pymunk.Body, bg_color: tuple = (100, 100, 100, 255), img: pygame.Surface = None) -> None:
+    def __init__(self, x: int, y: int, width: int, height: int, body: pymunk.Body, bg_color: tuple = (94, 62, 4, 255), img: pygame.Surface = None) -> None:
         super().__init__()
         self.points = []
         self.body = []
@@ -19,11 +19,7 @@ class Container(Sprite):
         self.height = height
         self.angle = 0
         self.angle_threshold = 15
-        # for num in range(n_points+1):
-        #     angle = radians(num * (180 / n_points))
-        #     x1 = width * cos(angle)
-        #     y1 = height * sin(angle)
-        #     self.points.append((x1, y1))
+        self.bg_color = bg_color
 
         self.points.append((-self.width/2, -self.height))
         self.points.append((-self.width/2, 0))
@@ -80,10 +76,13 @@ class Container(Sprite):
         for i in range(len(self.points) - 1):
             new_point_rotated = (self.points[i][0] * cos(self.body[i].angle) - self.points[i][1] * sin(self.body[i].angle), self.points[i][0] * sin(self.body[i].angle) + self.points[i][1] * cos(self.body[i].angle))
             new_point2_rotated = (self.points[i + 1][0] * cos(self.body[i].angle) - self.points[i + 1][1] * sin(self.body[i].angle), self.points[i + 1][0] * sin(self.body[i].angle) + self.points[i + 1][1] * cos(self.body[i].angle))
-            pygame.draw.line(screen, (255, 255, 255), (new_point_rotated[0] + self.x, new_point_rotated[1] + self.y), (new_point2_rotated[0] + self.x, new_point2_rotated[1] + self.y), 40)
-            pygame.draw.circle(screen, (255, 255, 255), (new_point_rotated[0] + self.x, new_point_rotated[1] + self.y), 20)
-        pygame.draw.circle(screen, (255, 255, 255), (new_point2_rotated[0] + self.x, new_point2_rotated[1] + self.y), 20)
-        pygame.draw.circle(screen, (0, 0, 0), (self.x, self.y), 10)
+            pygame.draw.line(screen, self.bg_color, (new_point_rotated[0] + self.x, new_point_rotated[1] + self.y), (new_point2_rotated[0] + self.x, new_point2_rotated[1] + self.y), 40)
+            pygame.draw.circle(screen, self.bg_color, (new_point_rotated[0] + self.x, new_point_rotated[1] + self.y), 20)
+        pygame.draw.circle(screen, self.bg_color, (new_point2_rotated[0] + self.x, new_point2_rotated[1] + self.y), 20)
+        pygame.draw.circle(screen, (112, 112, 119), (self.x, self.y), 10)
+        # rgb(112, 112, 119)
+
+
     def on_event(self, event):
         pass
         # print("I am a SemicirlcleLine and I received an event", event)

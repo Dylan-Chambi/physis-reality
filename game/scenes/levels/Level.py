@@ -8,15 +8,14 @@ import random
 import pymunk
 import pymunk.pygame_util
 
-from utils.utils import get_assets_path
+from utils.utils import get_assets_path, get_font
 
 from game.items.dynamicItems.BuildItem import BuildItem
 from game.items.dynamicItems.BuildItems.GemItem import GemItem
-from game.items.dynamicItems.BuildItems.LItem import LItem
+from game.items.dynamicItems.BuildItems.SemiTriangle import SemiTriangle
 
 from game.scenes.Scene import Scene
 from game.items.staticItems.Boundarie import Boundarie
-from game.items.staticItems.SemicirlcleLine import SemicirlcleLine
 from game.items.staticItems.Container import Container
 
 from game.constants import SCREEN_WIDTH, SCREEN_HEIGHT, FPS
@@ -151,6 +150,13 @@ class Level(Scene):
             # distance2 = math.sqrt((middle_finger.x - thumb_finger.x) ** 2 + (middle_finger.y - thumb_finger.y) ** 2 + (middle_finger.z - thumb_finger.z) ** 2)
 
     def pre_loads(self) -> None:
+        # Boundaries
+        self.add_static_item(Boundarie(SCREEN_WIDTH/2, 25, SCREEN_WIDTH, 50))
+        # self.add_static_item(Boundarie(SCREEN_WIDTH/2, SCREEN_HEIGHT, SCREEN_WIDTH, 50))
+        self.add_static_item(Boundarie(25, SCREEN_HEIGHT/2, 50, SCREEN_HEIGHT))
+        self.add_static_item(Boundarie(SCREEN_WIDTH - 25, SCREEN_HEIGHT/2, 50, SCREEN_HEIGHT))
+
+
         self.container = Container(SCREEN_WIDTH/2, SCREEN_HEIGHT - 200, SCREEN_WIDTH/2, 100, pymunk.Body.KINEMATIC)
         self.add_interactive_item(self.container)
 
@@ -182,19 +188,39 @@ class Level(Scene):
     def get_random_item(self, x, y):
         switch = random.randint(0, 1)
         min_size = 30
-        max_size = 100
+        max_size = 50
+        random_color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255), 255)
+        random_width = random.randint(min_size, max_size)
+        random_height = random.randint(min_size, max_size)
         if switch == 0:
-            return GemItem(x, y, random.randint(min_size, max_size), random.randint(min_size, max_size), bg_color=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255), 255))
+            return GemItem(x, y, random_width, random_height, random_color)
         elif switch == 1:
-            return LItem(x, y, random.randint(min_size, max_size), random.randint(min_size, max_size), bg_color=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255), 255))
+            return SemiTriangle(x, y, random_width, random_height, random_color)
+
+    def draw_interface(self):
+
+        self.screen.blit(get_font(30).render("Score: " , True, (255, 255, 255)), (10, 10))
+        self.screen.blit(get_font(30).render("Lives: " , True, (255, 255, 255)), (10, 50))
+        self.screen.blit(get_font(30).render("Level: " , True, (255, 255, 255)), (10, 90))
+        self.screen.blit(get_font(30).render("Time: " , True, (255, 255, 255)), (10, 130))
     
     def update(self, pressed_keys: list) -> None:
         super().update(pressed_keys)
+
+        # draw pick item box
+        pygame.draw.rect(self.screen, (13, 129, 133), (SCREEN_WIDTH/2 - 200, 0, 400, 200))
+        pygame.draw.rect(self.screen, (255, 255, 255), (SCREEN_WIDTH/2 - 200, 0, 400, 200), 5)
+        
+        for item in self.item_list:
+            item.draw_in_screen()
+            item.update(pressed_keys, self, self.app.dt)
+    
         if DRAW_PYMUNK:
             self.space.debug_draw(self.draw_options)
         if USE_CAMERA:
             self.draw_frame()
 
+        self.draw_interface()
         fps = self.app.clock.get_fps()
         if fps > 0:
             self.space.step(1 / fps)
