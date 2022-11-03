@@ -4,13 +4,20 @@ import pygame
 import math
 import asyncio
 import threading
+import random
 import pymunk
 import pymunk.pygame_util
+
+from utils.utils import get_assets_path
+
 from game.items.dynamicItems.BuildItem import BuildItem
+from game.items.dynamicItems.BuildItems.GemItem import GemItem
+from game.items.dynamicItems.BuildItems.LItem import LItem
 
 from game.scenes.Scene import Scene
 from game.items.staticItems.Boundarie import Boundarie
 from game.items.staticItems.SemicirlcleLine import SemicirlcleLine
+from game.items.staticItems.Container import Container
 
 from game.constants import SCREEN_WIDTH, SCREEN_HEIGHT, FPS
 
@@ -20,7 +27,7 @@ mp_drawing_styles = mp.solutions.drawing_styles
 
 
 USE_CAMERA = True
-DRAW_PYMUNK = True
+DRAW_PYMUNK = False
 
 def convert_opencv_to_pygame(img):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -32,7 +39,7 @@ def convert_opencv_to_pygame(img):
 
 class Level(Scene):
     def __init__(self, app, lose_scene: Scene = None, win_scene: Scene = None, menu_scene: Scene = None):
-        super().__init__(bg_color=(3, 224, 224))
+        super().__init__(bg_color=(3, 224, 224), background_img=pygame.image.load(get_assets_path("assets/sprites/background.jpg")))
         self.app = app
         self.lose_scene = lose_scene
         self.win_scene = win_scene
@@ -132,12 +139,11 @@ class Level(Scene):
             # calculate angle
             angle = math.atan2(self.left_middle_finger.y - self.left_wrist.y, self.left_middle_finger.x - self.left_wrist.x)
             angle = math.degrees(angle)
-            angle_threshold = 20
-            if angle > 0 and angle < 180 - angle_threshold:
-                angle = 180 - angle_threshold
-            if angle < 0 and angle > -180 + angle_threshold:
-                angle = -180 + angle_threshold
-            angle = -angle + 180
+            # angle_threshold = 20
+            if angle > 0:
+                angle = angle - 180
+            elif angle < 0:
+                angle = angle + 180
             self.container.angle = angle
 
             # pygame.draw.line(self.screen, (255, 255, 0), (-self.left_wrist.x * self.width + self.width, self.left_wrist.y * self.height), (-self.left_middle_finger.x * self.width + self.width, self.left_middle_finger.y * self.height), 5)
@@ -145,7 +151,7 @@ class Level(Scene):
             # distance2 = math.sqrt((middle_finger.x - thumb_finger.x) ** 2 + (middle_finger.y - thumb_finger.y) ** 2 + (middle_finger.z - thumb_finger.z) ** 2)
 
     def pre_loads(self) -> None:
-        self.container = SemicirlcleLine(SCREEN_WIDTH/2, 400, 300, 200, 10, pymunk.Body.KINEMATIC)
+        self.container = Container(SCREEN_WIDTH/2, SCREEN_HEIGHT - 200, SCREEN_WIDTH/2, 100, pymunk.Body.KINEMATIC)
         self.add_interactive_item(self.container)
 
         if USE_CAMERA:
@@ -172,6 +178,15 @@ class Level(Scene):
     def add_interactive_item(self, item) -> None:
         super().add_interactive_item(item)
         self.space.add(*item.body, *item.shape)
+
+    def get_random_item(self, x, y):
+        switch = random.randint(0, 1)
+        min_size = 30
+        max_size = 100
+        if switch == 0:
+            return GemItem(x, y, random.randint(min_size, max_size), random.randint(min_size, max_size), bg_color=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255), 255))
+        elif switch == 1:
+            return LItem(x, y, random.randint(min_size, max_size), random.randint(min_size, max_size), bg_color=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255), 255))
     
     def update(self, pressed_keys: list) -> None:
         super().update(pressed_keys)
@@ -198,7 +213,7 @@ class Level(Scene):
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
                 pos = pygame.mouse.get_pos()
-                self.add_dynamic_item(BuildItem(pos[0], pos[1], 50, 50))
+                self.add_dynamic_item(self.get_random_item(pos[0], pos[1]))
         if event.type == pygame.QUIT:
             self.thread.join()
         if event.type == pygame.KEYDOWN:

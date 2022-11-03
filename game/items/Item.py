@@ -1,5 +1,5 @@
 import numpy as np
-from math import radians
+from math import radians, degrees, sin, cos
 import pygame
 import pymunk
 
@@ -7,27 +7,49 @@ from pygame.sprite import Sprite
 from game.constants import SCREEN_WIDTH, SCREEN_HEIGHT
 
 class Item(Sprite):
-    def __init__(self, vertices: list, body: pymunk.Body, x: int, y: int, vx: float, vy: float, scale: int = 1, theta = radians(0), bg_color: tuple = (0, 100, 255, 255)) -> None:
+    def __init__(self, vertices: list, body: pymunk.Body, x: int, y: int, vx: float, vy: float, scale: int = 1, theta = radians(0), bg_color: tuple = (0, 100, 255, 255), img: pygame.Surface = None, img_width: int = 0, img_height: int = 0) -> None:
         super().__init__()
         self.vertices: list = vertices
         self.body: pymunk.Body = pymunk.Body(body_type=body)
         self.body.position: tuple =(x, y)
+        self.x = x
+        self.y = y
         # self.body.velocity: tuple = (vx, vy)
         # self.body.angular_velocity: float = 0
         self.shape: pymunk.Shape = pymunk.Poly(self.body, self.vertices)
         self.shape.mass: float = 1
-        self.shape.color: tuple = bg_color
+        self.shape.color: tuple = (100, 100, 100, 255)
         self.shape.elasticity = 0.4
         self.shape.friction = 0.5
         # self.shape.collision_type = 2
         self.bg_color: tuple = bg_color
+        self.img = img
+        if img is not None:
+            self.surf = img
+            self.surf = pygame.transform.scale(self.surf, (img_width, img_height))
+            self.rect = self.surf.get_rect(center=(x, y))
+        else:
+            self.surf = pygame.Surface((img_width, img_height), pygame.SRCALPHA).convert_alpha()
+            self.surf.fill(self.bg_color)
+            self.rect = self.surf.get_rect(center=(x, y))
 
     def update(self, event_keys: list, scene, dt):
-        pass
+        self.rect.x = self.body.position.x
+        self.rect.y = self.body.position.y
+        self.rect.center = (self.body.position.x, self.body.position.y)
+        if self.img is not None:
+            rotated_surf = pygame.transform.rotate(self.surf, -degrees(self.body.angle))
+            rotated_rect = rotated_surf.get_rect(center=self.rect.center)
+            screen = pygame.display.get_surface()
+            screen.blit(rotated_surf, rotated_rect)
 
-    def draw_in_screen(self, screen: pygame.Surface) -> None:
-        # screen = pygame.display.get_surface()
-        pass
+    def draw_in_screen(self) -> None:
+        new_points_rotated = [self.body.local_to_world(self.vertices[i]) for i in range(len(self.vertices))]
+
+
+        if self.img is None:
+            screen = pygame.display.get_surface()
+            pygame.draw.polygon(screen, self.bg_color, new_points_rotated)
 
     def transform(self, t_matrix):
         vert_list = [[v[0], v[1], 1] for v in self.vertices] 

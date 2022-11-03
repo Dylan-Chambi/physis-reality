@@ -17,25 +17,11 @@ class ItemRect(Item):
             # (x - width / 2, y - heigth / 2),
             # (x - width / 2, y + heigth / 2)
         ]
-        super().__init__(vertices_array, body, x, y, 0, 0, scale, theta, bg_color=bg_color)
-        if img is not None:
-            self.surf = img
-            self.surf = pygame.transform.scale(self.surf, (width, heigth))
-            self.rect = self.surf.get_rect(center=(x, y))
-        else:
-            self.surf = pygame.Surface((width, heigth), pygame.SRCALPHA).convert_alpha()
-            self.surf.fill(self.bg_color)
-            self.rect = self.surf.get_rect(center=(x, y))
+        super().__init__(vertices_array, body, x, y, 0, 0, scale, theta, bg_color=bg_color, img=img, img_width=width, img_height=heigth)
 
     def update(self, event_keys: list, scene, dt):
         super().update(event_keys, scene, dt)
-        self.rect.x = self.body.position.x
-        self.rect.y = self.body.position.y
-        self.rect.center = (self.body.position.x, self.body.position.y)
-        rotated_surf = pygame.transform.rotate(self.surf, -degrees(self.body.angle))
-        rotated_rect = rotated_surf.get_rect(center=self.rect.center)
-        screen = pygame.display.get_surface()
-        screen.blit(rotated_surf, rotated_rect)
+        pass
         
         
     
