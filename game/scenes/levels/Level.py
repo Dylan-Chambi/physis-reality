@@ -27,7 +27,7 @@ mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 
 
-USE_CAMERA = False
+
 DRAW_PYMUNK = False
 
 def convert_opencv_to_pygame(img):
@@ -46,12 +46,14 @@ class Level(Scene):
         self.win_scene = win_scene
         self.menu_scene = menu_scene
         self.show_camera = self.app.show_camera
-        if USE_CAMERA:
+
+        if self.app.use_camera:
+            self.cap = self.app.cap
             self.hands = mp_hands.Hands(
                 max_num_hands=2,
                 min_detection_confidence=0.5,
                 min_tracking_confidence=0.5)
-            self.cap = cv2.VideoCapture(0)
+
         self.screen = self.app.screen
         self.width = self.app.width
         self.height = self.app.height
@@ -81,6 +83,7 @@ class Level(Scene):
         self.lives = 10
         self.camera_fps = 0
         self.counting = False
+        self.is_running_current_scene = False
 
         if DRAW_PYMUNK:
             self.draw_options = pymunk.pygame_util.DrawOptions(self.screen)
@@ -191,6 +194,7 @@ class Level(Scene):
 
 
     def pre_loads(self) -> None:
+        self.is_running_current_scene = True
         # Boundaries
         self.add_static_item(Boundarie(SCREEN_WIDTH/2, 25, SCREEN_WIDTH, 50))
         # self.add_static_item(Boundarie(SCREEN_WIDTH/2, SCREEN_HEIGHT, SCREEN_WIDTH, 50))
@@ -207,12 +211,10 @@ class Level(Scene):
 
         pygame.event.post(pygame.event.Event(SPAWN_ITEM))
 
-        if USE_CAMERA:
+        if self.app.use_camera:
             self.thread = threading.Thread(target=self.worker)
             self.thread.start()
 
-        # thread2 = threading.Thread(target=self.worker_goal)
-        # thread2.start()
         pygame.time.set_timer(COUNT_ONE_SECOND, 1000)
 
 
@@ -221,25 +223,8 @@ class Level(Scene):
         asyncio.set_event_loop(new_loop)
         new_loop.run_until_complete(self.capture())
 
-    # def worker_goal(self):
-    #     new_loop = asyncio.new_event_loop()
-    #     asyncio.set_event_loop(new_loop)
-    #     new_loop.run_until_complete(self.calculate_goal())
-
-    # async def calculate_goal(self):
-    #     while self.app.is_running:
-    #         precision_points = 10
-    #         piece = SCREEN_WIDTH / precision_points
-    #         for i in range(precision_points):
-    #             for item in self.dynamic_items:
-    #                 pygame.draw.circle(self.screen, (255, 0, 0), (piece * i, self.goal.y), 5)
-    #                 dist = item.shape.point_query((piece * i, self.goal.y))
-    #                 if dist.distance < 0:
-    #                     print("GOAL")
-    #                     break
-
     async def capture(self):
-        while self.app.is_running:
+        while self.is_running_current_scene:
             start_time = time.time()
             _, self.frame = self.cap.read()
             if self.frame is not None:
@@ -310,7 +295,7 @@ class Level(Scene):
     
         if DRAW_PYMUNK:
             self.space.debug_draw(self.draw_options)
-        if USE_CAMERA:
+        if self.app.use_camera:
             self.draw_frame()
             self.draw_hand()
 
@@ -337,15 +322,16 @@ class Level(Scene):
                 pos = pygame.mouse.get_pos()
                 self.add_dynamic_item(self.get_random_item(pos[0], pos[1]))
         if event.type == pygame.QUIT:
-            if USE_CAMERA:
+            self.is_running_current_scene = False
+            if self.app.use_camera:
                 self.cap.release()
                 cv2.destroyAllWindows()
                 self.thread.join()
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
-                if USE_CAMERA:
-                    self.cap.release()
-                    cv2.destroyAllWindows()
+                self.on_unload()
+                self.app.change_scene(self.menu_scene)
+                if self.app.use_camera:
                     self.thread.join()
         if event.type == SPAWN_ITEM:
             self.spawn_item = self.get_random_item(self.spawn_position[0] + 200, self.spawn_position[1] + 100)
@@ -368,6 +354,7 @@ class Level(Scene):
         if event.type == COUNT_ONE_SECOND:
             self.time -= 1
             if self.time <= 0:
+                self.on_unload()
                 self.app.change_scene(self.lose_scene)
             if self.counting:
                 pygame.event.post(pygame.event.Event(ITEM_IN_GOAL_TIME_COUNT))
@@ -375,6 +362,7 @@ class Level(Scene):
             self.lives -= 1
             self.item_list.remove(event.item)
             if self.lives <= 0:
+                self.on_unload()
                 self.app.change_scene(self.lose_scene)
         if event.type == ITEM_IN_GOAL:
             if not (event.item == self.spawn_item or event.item == self.grab_item):
@@ -390,4 +378,20 @@ class Level(Scene):
         if event.type == ITEM_IN_GOAL_TIME_COUNT:
             self.goal.time_to_win -= 1
             if self.goal.time_to_win <= -1:
+                self.on_unload()
                 self.app.change_scene(self.win_scene)
+
+    def on_unload(self) -> None:
+        super().on_unload()
+        self.is_running_current_scene = False
+        self.thread.join()
+        for item in self.space.shapes:
+            self.space.remove(item)
+        self.spawn_item = None
+        self.grab_item = None
+        self.hand_position = None
+        self.hand_angle = None
+        self.is_grabbing = False
+        self.counting = False
+        self.time = 200
+        self.lives = 10

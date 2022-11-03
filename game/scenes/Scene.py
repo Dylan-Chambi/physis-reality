@@ -43,3 +43,10 @@ class Scene:
     def on_event(self, event: pygame.event) -> None:
         for item in self.interactive_item:
             item.on_event(event)
+
+    def on_unload(self) -> None:
+        self.item_list.clear()
+        self.static_items.empty()
+        self.dynamic_items.empty()
+        self.interactive_item.empty()
+        

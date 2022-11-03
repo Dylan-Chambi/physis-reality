@@ -1,11 +1,18 @@
+import mediapipe as mp
+import cv2
 import numpy as np
 import pygame
 import traceback
+import cv2
 
 
 from game.scenes.Scene import Scene
 
+mp_hands = mp.solutions.hands
+mp_drawing = mp.solutions.drawing_utils
+mp_drawing_styles = mp.solutions.drawing_styles
 
+USE_CAMERA = True
 
 class App:
     def __init__(self, screen_width: int, screen_height: int, show_camera: bool = False, fps: int = 60, init_scene: Scene = None, bg_color: tuple = (39, 185, 245, 0.8)):
@@ -21,6 +28,13 @@ class App:
         self.sprites = pygame.sprite.Group()
         self.clock = pygame.time.Clock()
         self.scene = init_scene
+        self.use_camera = USE_CAMERA
+        if self.use_camera:
+            self.hands = mp_hands.Hands(
+                max_num_hands=2,
+                min_detection_confidence=0.5,
+                min_tracking_confidence=0.5)
+            self.cap = cv2.VideoCapture(0)
         pygame.font.init()
         if self.scene is not None:
             self.scene.pre_loads()
@@ -45,11 +59,6 @@ class App:
         try:
             while self.is_running:
                 for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
-                        self.is_running = False
-                    if event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_ESCAPE:
-                            self.is_running = False
                     self.scene.on_event(event)
 
                 keys = pygame.key.get_pressed()
