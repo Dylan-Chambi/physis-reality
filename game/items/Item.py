@@ -31,6 +31,7 @@ class Item(Sprite):
             self.surf = pygame.Surface((img_width, img_height), pygame.SRCALPHA).convert_alpha()
             self.surf.fill(self.bg_color)
             self.rect = self.surf.get_rect(center=(x, y))
+        
 
     def update(self, event_keys: list, scene, dt):
         self.rect.x = self.body.position.x

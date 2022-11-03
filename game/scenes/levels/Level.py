@@ -9,24 +9,25 @@ import pymunk
 import time
 import pymunk.pygame_util
 
-from utils.utils import get_assets_path, get_font
 
-from game.items.dynamicItems.BuildItem import BuildItem
 from game.items.dynamicItems.BuildItems.GemItem import GemItem
 from game.items.dynamicItems.BuildItems.SemiTriangle import SemiTriangle
 
-from game.scenes.Scene import Scene
+
 from game.items.staticItems.Boundarie import Boundarie
 from game.items.staticItems.Container import Container
+from game.items.staticItems.Goal import Goal
 
-from game.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SPAWN_ITEM, GRAB, DROP, COUNT_ONE_SECOND, ITEM_FALLED
+from game.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SPAWN_ITEM, GRAB, DROP, COUNT_ONE_SECOND, ITEM_FALLED, GOAL_Y, ITEM_IN_GOAL, ITEM_IN_GOAL_TIME_COUNT
+from game.scenes.Scene import Scene
+from utils.utils import get_assets_path, get_font
 
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 
 
-USE_CAMERA = True
+USE_CAMERA = False
 DRAW_PYMUNK = False
 
 def convert_opencv_to_pygame(img):
@@ -66,6 +67,7 @@ class Level(Scene):
         self.container = None
         self.spawn_item = None
         self.grab_item = None
+        self.goal = None
         self.hand_img = pygame.image.load(get_assets_path("assets/sprites/hand_grab.png"))
         self.hand_img = pygame.transform.scale(self.hand_img, (50, 50))
         self.hand_img.set_colorkey((255, 255, 255, 0))
@@ -78,6 +80,7 @@ class Level(Scene):
         self.time = 200
         self.lives = 10
         self.camera_fps = 0
+        self.counting = False
 
         if DRAW_PYMUNK:
             self.draw_options = pymunk.pygame_util.DrawOptions(self.screen)
@@ -194,6 +197,10 @@ class Level(Scene):
         self.add_static_item(Boundarie(25, SCREEN_HEIGHT/2, 50, SCREEN_HEIGHT))
         self.add_static_item(Boundarie(SCREEN_WIDTH - 25, SCREEN_HEIGHT/2, 50, SCREEN_HEIGHT))
 
+        #Goal
+        self.goal = Goal(GOAL_Y, 10)
+        self.add_static_item(self.goal)
+
 
         self.container = Container(SCREEN_WIDTH/2, SCREEN_HEIGHT - 200, SCREEN_WIDTH/2, 100, pymunk.Body.KINEMATIC)
         self.add_interactive_item(self.container)
@@ -203,6 +210,9 @@ class Level(Scene):
         if USE_CAMERA:
             self.thread = threading.Thread(target=self.worker)
             self.thread.start()
+
+        # thread2 = threading.Thread(target=self.worker_goal)
+        # thread2.start()
         pygame.time.set_timer(COUNT_ONE_SECOND, 1000)
 
 
@@ -211,6 +221,22 @@ class Level(Scene):
         asyncio.set_event_loop(new_loop)
         new_loop.run_until_complete(self.capture())
 
+    # def worker_goal(self):
+    #     new_loop = asyncio.new_event_loop()
+    #     asyncio.set_event_loop(new_loop)
+    #     new_loop.run_until_complete(self.calculate_goal())
+
+    # async def calculate_goal(self):
+    #     while self.app.is_running:
+    #         precision_points = 10
+    #         piece = SCREEN_WIDTH / precision_points
+    #         for i in range(precision_points):
+    #             for item in self.dynamic_items:
+    #                 pygame.draw.circle(self.screen, (255, 0, 0), (piece * i, self.goal.y), 5)
+    #                 dist = item.shape.point_query((piece * i, self.goal.y))
+    #                 if dist.distance < 0:
+    #                     print("GOAL")
+    #                     break
 
     async def capture(self):
         while self.app.is_running:
@@ -250,8 +276,13 @@ class Level(Scene):
     def draw_interface(self):
         self.screen.blit(get_font(30).render("Lives: " + str(self.lives), True, (255, 255, 255)), (10, 10))
         self.screen.blit(get_font(30).render("Time: " + str(int(self.time)), True, (255, 255, 255)), (10, 50))
+        # self.screen.blit(get_font(30).render("Time to win" + str(int(self.goal.time_to_win)), True, (255, 255, 255)), (10, 90))
         self.screen.blit(get_font(30).render("Camera FPS: " + str(int(self.camera_fps)), True, (255, 255, 255)), (SCREEN_WIDTH - 440, 10))
         self.screen.blit(get_font(30).render("FPS: " + str(int(self.app.clock.get_fps())), True, (255, 255, 255)), (SCREEN_WIDTH - 270, 50))
+
+        # Draw in center of screen
+        if self.counting:
+            self.screen.blit(get_font(50).render("Hold on!!! " + str(self.goal.time_to_win) + "...", True, (122, 84, 13)), (SCREEN_WIDTH/2-310, SCREEN_HEIGHT/2-100))
 
     def draw_hand(self):
         if self.hand_position is not None and self.hand_angle is not None:
@@ -338,8 +369,25 @@ class Level(Scene):
             self.time -= 1
             if self.time <= 0:
                 self.app.change_scene(self.lose_scene)
+            if self.counting:
+                pygame.event.post(pygame.event.Event(ITEM_IN_GOAL_TIME_COUNT))
         if event.type == ITEM_FALLED:
             self.lives -= 1
             self.item_list.remove(event.item)
             if self.lives <= 0:
                 self.app.change_scene(self.lose_scene)
+        if event.type == ITEM_IN_GOAL:
+            if not (event.item == self.spawn_item or event.item == self.grab_item):
+                # print velocity
+                if event.item.body.velocity.length < 3:
+                    self.goal.bg_color = (0, 255, 0)
+                    if not self.counting:
+                        self.counting = True
+                else:
+                    self.goal.bg_color = (255, 0, 0)
+                    self.counting = False
+                    self.goal.time_to_win = 3
+        if event.type == ITEM_IN_GOAL_TIME_COUNT:
+            self.goal.time_to_win -= 1
+            if self.goal.time_to_win <= -1:
+                self.app.change_scene(self.win_scene)
