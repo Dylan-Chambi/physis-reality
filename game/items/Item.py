@@ -37,7 +37,7 @@ class Item(Sprite):
         self.rect.x = self.body.position.x
         self.rect.y = self.body.position.y
         self.rect.center = (self.body.position.x, self.body.position.y)
-        if self.body.position.y > SCREEN_HEIGHT:
+        if self.body.position.y > SCREEN_HEIGHT or self.body.position.x > SCREEN_WIDTH or self.body.position.x < 0 or self.body.position.y < 0:
             self.kill()
             pygame.event.post(pygame.event.Event(ITEM_FALLED, item=self))
 

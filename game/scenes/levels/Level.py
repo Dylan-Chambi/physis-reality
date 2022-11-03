@@ -12,6 +12,8 @@ import pymunk.pygame_util
 
 from game.items.dynamicItems.BuildItems.GemItem import GemItem
 from game.items.dynamicItems.BuildItems.SemiTriangle import SemiTriangle
+from game.items.dynamicItems.BuildItems.SquareItem import SquareItem
+from game.items.dynamicItems.BuildItems.BallItem import BallItem
 
 
 from game.items.staticItems.Boundarie import Boundarie
@@ -247,7 +249,7 @@ class Level(Scene):
         self.space.add(*item.body, *item.shape)
 
     def get_random_item(self, x, y):
-        switch = random.randint(0, 1)
+        switch = random.randint(0, 3)
         min_size = 50
         max_size = 80
         random_color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255), 255)
@@ -257,6 +259,10 @@ class Level(Scene):
             return GemItem(x, y, random_width, random_height, random_color)
         elif switch == 1:
             return SemiTriangle(x, y, random_width, random_height, random_color)
+        elif switch == 2:
+            return SquareItem(x, y, random_width, random_height, random_color)
+        elif switch == 3:
+            return BallItem(x, y, random_width, random_color)
 
     def draw_interface(self):
         self.screen.blit(get_font(30).render("Lives: " + str(self.lives), True, (255, 255, 255)), (10, 10))
@@ -384,7 +390,8 @@ class Level(Scene):
     def on_unload(self) -> None:
         super().on_unload()
         self.is_running_current_scene = False
-        self.thread.join()
+        if self.app.use_camera:
+            self.thread.join()
         for item in self.space.shapes:
             self.space.remove(item)
         self.spawn_item = None
