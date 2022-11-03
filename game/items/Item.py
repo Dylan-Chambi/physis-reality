@@ -4,7 +4,7 @@ import pygame
 import pymunk
 
 from pygame.sprite import Sprite
-from game.constants import SCREEN_WIDTH, SCREEN_HEIGHT
+from game.constants import SCREEN_WIDTH, SCREEN_HEIGHT, ITEM_FALLED
 
 class Item(Sprite):
     def __init__(self, vertices: list, body: pymunk.Body, x: int, y: int, vx: float, vy: float, scale: int = 1, theta = radians(0), bg_color: tuple = (0, 100, 255, 255), img: pygame.Surface = None, img_width: int = 0, img_height: int = 0) -> None:
@@ -36,6 +36,9 @@ class Item(Sprite):
         self.rect.x = self.body.position.x
         self.rect.y = self.body.position.y
         self.rect.center = (self.body.position.x, self.body.position.y)
+        if self.body.position.y > SCREEN_HEIGHT:
+            self.kill()
+            pygame.event.post(pygame.event.Event(ITEM_FALLED, item=self))
 
     def draw_in_screen(self) -> None:
         new_points_rotated = [self.body.local_to_world(self.vertices[i]) for i in range(len(self.vertices))]

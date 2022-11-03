@@ -6,6 +6,7 @@ import asyncio
 import threading
 import random
 import pymunk
+import time
 import pymunk.pygame_util
 
 from utils.utils import get_assets_path, get_font
@@ -18,7 +19,7 @@ from game.scenes.Scene import Scene
 from game.items.staticItems.Boundarie import Boundarie
 from game.items.staticItems.Container import Container
 
-from game.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SPAWN_ITEM, GRAB, DROP
+from game.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SPAWN_ITEM, GRAB, DROP, COUNT_ONE_SECOND, ITEM_FALLED
 
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
@@ -74,13 +75,15 @@ class Level(Scene):
         self.hand_position = None
         self.hand_angle = 0
         self.is_grabbing = False
+        self.time = 200
+        self.lives = 10
+        self.camera_fps = 0
 
         if DRAW_PYMUNK:
             self.draw_options = pymunk.pygame_util.DrawOptions(self.screen)
 
 
     def process_frame(self, frame):
-        pass
         # improve performance
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame.flags.writeable = False
@@ -180,6 +183,8 @@ class Level(Scene):
             elif angle < 0:
                 angle = angle + 180
             self.container.angle = angle
+        else:
+            self.container.angle = 0
 
 
     def pre_loads(self) -> None:
@@ -198,6 +203,7 @@ class Level(Scene):
         if USE_CAMERA:
             self.thread = threading.Thread(target=self.worker)
             self.thread.start()
+        pygame.time.set_timer(COUNT_ONE_SECOND, 1000)
 
 
     def worker(self):
@@ -206,7 +212,16 @@ class Level(Scene):
         new_loop.run_until_complete(self.capture())
 
 
-        
+    async def capture(self):
+        while self.app.is_running:
+            start_time = time.time()
+            _, self.frame = self.cap.read()
+            if self.frame is not None:
+                self.process_frame(self.frame)
+            end_time = time.time()
+            self.camera_fps = 1 / (end_time - start_time)
+
+            
 
     def add_static_item(self, item):
         super().add_static_item(item)
@@ -222,8 +237,8 @@ class Level(Scene):
 
     def get_random_item(self, x, y):
         switch = random.randint(0, 1)
-        min_size = 30
-        max_size = 50
+        min_size = 50
+        max_size = 80
         random_color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255), 255)
         random_width = random.randint(min_size, max_size)
         random_height = random.randint(min_size, max_size)
@@ -233,10 +248,10 @@ class Level(Scene):
             return SemiTriangle(x, y, random_width, random_height, random_color)
 
     def draw_interface(self):
-        self.screen.blit(get_font(30).render("Score: " , True, (255, 255, 255)), (10, 10))
-        self.screen.blit(get_font(30).render("Lives: " , True, (255, 255, 255)), (10, 50))
-        self.screen.blit(get_font(30).render("Level: " , True, (255, 255, 255)), (10, 90))
-        self.screen.blit(get_font(30).render("Time: " , True, (255, 255, 255)), (10, 130))
+        self.screen.blit(get_font(30).render("Lives: " + str(self.lives), True, (255, 255, 255)), (10, 10))
+        self.screen.blit(get_font(30).render("Time: " + str(int(self.time)), True, (255, 255, 255)), (10, 50))
+        self.screen.blit(get_font(30).render("Camera FPS: " + str(int(self.camera_fps)), True, (255, 255, 255)), (SCREEN_WIDTH - 440, 10))
+        self.screen.blit(get_font(30).render("FPS: " + str(int(self.app.clock.get_fps())), True, (255, 255, 255)), (SCREEN_WIDTH - 270, 50))
 
     def draw_hand(self):
         if self.hand_position is not None and self.hand_angle is not None:
@@ -248,13 +263,15 @@ class Level(Scene):
                 img_rotated = pygame.transform.rotate(self.hand_img, math.degrees(self.hand_angle))
                 pygame.event.post(pygame.event.Event(DROP))
             self.screen.blit(img_rotated, (-self.hand_position[0] * SCREEN_WIDTH + SCREEN_WIDTH - img_rotated.get_width()/2, self.hand_position[1] * SCREEN_HEIGHT - img_rotated.get_height()/2))
+        else:
+            pygame.event.post(pygame.event.Event(DROP))
     
     def update(self, pressed_keys: list) -> None:
         super().update(pressed_keys)
 
         # draw pick item box
         pygame.draw.rect(self.screen, (13, 129, 133), (self.spawn_position[0], self.spawn_position[1], 400, 200))
-        pygame.draw.rect(self.screen, (255, 255, 255), (self.spawn_position[0], self.spawn_position[1], 400, 200), 5)
+        pygame.draw.rect(self.screen, (255, 255, 255), (self.spawn_position[0], self.spawn_position[1], 400, 200), 10)
         
         for item in self.item_list:
             item.draw_in_screen()
@@ -277,16 +294,9 @@ class Level(Scene):
         if self.grab_item is not None and self.hand_position is not None:
             self.grab_item.body.position = (-self.hand_position[0] * SCREEN_WIDTH + SCREEN_WIDTH, self.hand_position[1] * SCREEN_HEIGHT)
             self.grab_item.body.angle = -self.hand_angle
-            self.grab_item.filter = pymunk.ShapeFilter(categories=1, mask=1)
-            self.grab_item.body.velocity_func = lambda body, gravity, damping, dt: (0, 0)
+            self.grab_item.shape.filter = pymunk.ShapeFilter(categories=1, mask=1)
+            self.grab_item.body.velocity_func = lambda body, gravity, damping, dt: pymunk.Body.update_velocity(body, (0, 0), damping, dt)
 
-
-
-    async def capture(self):
-        while self.app.is_running:
-            _, self.frame = self.cap.read()
-            if self.frame is not None:
-                self.process_frame(self.frame)
 
     def on_event(self, event: pygame.event) -> None:
         super().on_event(event)
@@ -296,28 +306,40 @@ class Level(Scene):
                 pos = pygame.mouse.get_pos()
                 self.add_dynamic_item(self.get_random_item(pos[0], pos[1]))
         if event.type == pygame.QUIT:
-            self.thread.join()
+            if USE_CAMERA:
+                self.cap.release()
+                cv2.destroyAllWindows()
+                self.thread.join()
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
-                self.thread.join()
+                if USE_CAMERA:
+                    self.cap.release()
+                    cv2.destroyAllWindows()
+                    self.thread.join()
         if event.type == SPAWN_ITEM:
             self.spawn_item = self.get_random_item(self.spawn_position[0] + 200, self.spawn_position[1] + 100)
             self.spawn_item.shape.filter = pymunk.ShapeFilter(categories=100, mask=100)
             self.spawn_item.body.velocity_func = lambda body, gravity, damping, dt: (0, 0)
             self.add_dynamic_item(self.spawn_item)
         if event.type == GRAB:
-            if self.is_grabbing:
+            if self.is_grabbing and self.grab_item is None:
                 for item in self.item_list:
                     if not isinstance(item, Container):
                         dist = item.shape.point_query((-self.hand_position[0] * SCREEN_WIDTH + SCREEN_WIDTH, self.hand_position[1] * SCREEN_HEIGHT))
                         if dist.distance < 0.1:
                             self.grab_item = item
+                            if item == self.spawn_item:
+                                pygame.time.set_timer(SPAWN_ITEM, 2000, 1)
         if event.type == DROP:
             if self.grab_item is not None:
-                # gravity function
                 self.grab_item.body.velocity_func = lambda body, gravity, damping, dt: pymunk.Body.update_velocity(body, gravity, damping, dt)
                 self.grab_item = None
-            # self.spawn_item.body.position = (-self.hand_position[0] * SCREEN_WIDTH + SCREEN_WIDTH, self.hand_position[1] * SCREEN_HEIGHT)
-            # self.spawn_item.shape.filter = pymunk.ShapeFilter(categories=1, mask=1)
-            # self.spawn_item.body.velocity_func = lambda body, gravity, damping, dt: (0, 0)
-            # self.spawn_item.body.angle = -self.hand_angle
+        if event.type == COUNT_ONE_SECOND:
+            self.time -= 1
+            if self.time <= 0:
+                self.app.change_scene(self.lose_scene)
+        if event.type == ITEM_FALLED:
+            self.lives -= 1
+            self.item_list.remove(event.item)
+            if self.lives <= 0:
+                self.app.change_scene(self.lose_scene)
