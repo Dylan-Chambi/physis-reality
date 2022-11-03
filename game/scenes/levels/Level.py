@@ -18,7 +18,7 @@ from game.scenes.Scene import Scene
 from game.items.staticItems.Boundarie import Boundarie
 from game.items.staticItems.Container import Container
 
-from game.constants import SCREEN_WIDTH, SCREEN_HEIGHT, FPS
+from game.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SPAWN_ITEM, GRAB, DROP
 
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
@@ -55,13 +55,25 @@ class Level(Scene):
         self.height = self.app.height
         self.space = pymunk.Space()
         self.space.gravity = (0, 981)
-        self.frame_count = 0
+        self.spawn_position = (SCREEN_WIDTH/2 - 200, 50)
         self.right_fingers = []
         self.right_thumb_finger = None
+        self.rigth_wrist = None
         self.left_wrist = None
         self.left_middle_finger = None
         self.thread = None
         self.container = None
+        self.spawn_item = None
+        self.grab_item = None
+        self.hand_img = pygame.image.load(get_assets_path("assets/sprites/hand_grab.png"))
+        self.hand_img = pygame.transform.scale(self.hand_img, (50, 50))
+        self.hand_img.set_colorkey((255, 255, 255, 0))
+        self.hand_grabbing_img = pygame.image.load(get_assets_path("assets/sprites/hand_grabbing.png"))
+        self.hand_grabbing_img = pygame.transform.scale(self.hand_grabbing_img, (50, 50))
+        self.hand_grabbing_img.set_colorkey((255, 255, 255, 0))
+        self.hand_position = None
+        self.hand_angle = 0
+        self.is_grabbing = False
 
         if DRAW_PYMUNK:
             self.draw_options = pymunk.pygame_util.DrawOptions(self.screen)
@@ -77,6 +89,7 @@ class Level(Scene):
         if not results.multi_hand_landmarks:
             self.right_fingers = []
             self.right_thumb_finger = None
+            self.rigth_wrist = None
             self.left_wrist = None
             self.left_middle_finger = None
             return
@@ -101,6 +114,7 @@ class Level(Scene):
         if results.multi_handedness[0].classification[0].label == "Left":
             self.right_fingers = [index_finger1, middle_finger1, ring_finger1, pinky_finger1]
             self.right_thumb_finger = thumb_finger1
+            self.rigth_wrist = wrist1
             self.left_wrist = None
             self.left_middle_finger = None
 
@@ -109,11 +123,13 @@ class Level(Scene):
             self.left_middle_finger = middle_finger1
             self.right_fingers = []
             self.right_thumb_finger = None
+            self.rigth_wrist = None
 
         if len(results.multi_hand_landmarks) > 1:
             if results.multi_handedness[1].classification[0].label == "Left":
                 self.right_fingers = [index_finger2, middle_finger2, ring_finger2, pinky_finger2]
                 self.right_thumb_finger = thumb_finger2
+                self.rigth_wrist = wrist2
 
         if len(results.multi_hand_landmarks) > 1:
             if results.multi_handedness[1].classification[0].label == "Right":
@@ -122,32 +138,49 @@ class Level(Scene):
         
 
     def draw_frame(self):
-        if self.right_thumb_finger is not None and len(self.right_fingers) > 0:
-            pygame.draw.circle(self.screen, (255, 255, 0), (-self.right_thumb_finger.x * self.width + self.width, self.right_thumb_finger.y * self.height), 10)
+        if self.right_thumb_finger is not None and self.rigth_wrist is not None and len(self.right_fingers) > 0:
             center_point_x = self.right_fingers[0].x
             center_point_y = self.right_fingers[0].y
+            center_point_z = self.right_fingers[0].z
             for i in range(1, len(self.right_fingers)):
                 center_point_x += self.right_fingers[i].x
                 center_point_y += self.right_fingers[i].y
+                center_point_z += self.right_fingers[i].z
             center_point_x /= len(self.right_fingers)
             center_point_y /= len(self.right_fingers)
-            pygame.draw.circle(self.screen, (255, 0, 0), (-center_point_x * self.width + self.width, center_point_y * self.height), 10)
+            center_point_z /= len(self.right_fingers)
+
+            center_center_point_x = (center_point_x + self.right_thumb_finger.x) / 2
+            center_center_point_y = (center_point_y + self.right_thumb_finger.y) / 2
+            center_center_point_z = (center_point_z + self.right_thumb_finger.z) / 2
+
+
+            self.hand_position = (center_center_point_x, center_center_point_y)
+
+            distance = math.sqrt((center_point_x - self.right_thumb_finger.x) ** 2 + (center_point_y - self.right_thumb_finger.y) ** 2)
+            
+            # calculate distance relative to z axis
+            self.is_grabbing = distance + center_center_point_z + self.right_thumb_finger.z < 0.01
+            # self.is_grabbing = distance < 0.1
+
+            self.hand_angle = math.atan2(self.rigth_wrist.y - center_point_y, self.rigth_wrist.x - center_point_x)
+            self.hand_angle += math.radians(-90)
+        else:
+            self.hand_position = None
+            self.hand_angle = None
+            self.is_grabbing = False
+
     
 
         if self.left_wrist is not None and self.left_middle_finger is not None:
-            # calculate angle
             angle = math.atan2(self.left_middle_finger.y - self.left_wrist.y, self.left_middle_finger.x - self.left_wrist.x)
             angle = math.degrees(angle)
-            # angle_threshold = 20
             if angle > 0:
                 angle = angle - 180
             elif angle < 0:
                 angle = angle + 180
             self.container.angle = angle
 
-            # pygame.draw.line(self.screen, (255, 255, 0), (-self.left_wrist.x * self.width + self.width, self.left_wrist.y * self.height), (-self.left_middle_finger.x * self.width + self.width, self.left_middle_finger.y * self.height), 5)
-            # distance = math.sqrt((index_finger.x - thumb_finger.x) ** 2 + (index_finger.y - thumb_finger.y) ** 2 + (index_finger.z - thumb_finger.z) ** 2)
-            # distance2 = math.sqrt((middle_finger.x - thumb_finger.x) ** 2 + (middle_finger.y - thumb_finger.y) ** 2 + (middle_finger.z - thumb_finger.z) ** 2)
 
     def pre_loads(self) -> None:
         # Boundaries
@@ -159,6 +192,8 @@ class Level(Scene):
 
         self.container = Container(SCREEN_WIDTH/2, SCREEN_HEIGHT - 200, SCREEN_WIDTH/2, 100, pymunk.Body.KINEMATIC)
         self.add_interactive_item(self.container)
+
+        pygame.event.post(pygame.event.Event(SPAWN_ITEM))
 
         if USE_CAMERA:
             self.thread = threading.Thread(target=self.worker)
@@ -198,18 +233,28 @@ class Level(Scene):
             return SemiTriangle(x, y, random_width, random_height, random_color)
 
     def draw_interface(self):
-
         self.screen.blit(get_font(30).render("Score: " , True, (255, 255, 255)), (10, 10))
         self.screen.blit(get_font(30).render("Lives: " , True, (255, 255, 255)), (10, 50))
         self.screen.blit(get_font(30).render("Level: " , True, (255, 255, 255)), (10, 90))
         self.screen.blit(get_font(30).render("Time: " , True, (255, 255, 255)), (10, 130))
+
+    def draw_hand(self):
+        if self.hand_position is not None and self.hand_angle is not None:
+            img_rotated = None
+            if self.is_grabbing:
+                img_rotated = pygame.transform.rotate(self.hand_grabbing_img, math.degrees(self.hand_angle))
+                pygame.event.post(pygame.event.Event(GRAB))
+            else:
+                img_rotated = pygame.transform.rotate(self.hand_img, math.degrees(self.hand_angle))
+                pygame.event.post(pygame.event.Event(DROP))
+            self.screen.blit(img_rotated, (-self.hand_position[0] * SCREEN_WIDTH + SCREEN_WIDTH - img_rotated.get_width()/2, self.hand_position[1] * SCREEN_HEIGHT - img_rotated.get_height()/2))
     
     def update(self, pressed_keys: list) -> None:
         super().update(pressed_keys)
 
         # draw pick item box
-        pygame.draw.rect(self.screen, (13, 129, 133), (SCREEN_WIDTH/2 - 200, 0, 400, 200))
-        pygame.draw.rect(self.screen, (255, 255, 255), (SCREEN_WIDTH/2 - 200, 0, 400, 200), 5)
+        pygame.draw.rect(self.screen, (13, 129, 133), (self.spawn_position[0], self.spawn_position[1], 400, 200))
+        pygame.draw.rect(self.screen, (255, 255, 255), (self.spawn_position[0], self.spawn_position[1], 400, 200), 5)
         
         for item in self.item_list:
             item.draw_in_screen()
@@ -219,17 +264,27 @@ class Level(Scene):
             self.space.debug_draw(self.draw_options)
         if USE_CAMERA:
             self.draw_frame()
+            self.draw_hand()
 
+        self.control_object()
         self.draw_interface()
         fps = self.app.clock.get_fps()
         if fps > 0:
             self.space.step(1 / fps)
             self.app.dt = 1 / fps
 
+    def control_object(self):
+        if self.grab_item is not None and self.hand_position is not None:
+            self.grab_item.body.position = (-self.hand_position[0] * SCREEN_WIDTH + SCREEN_WIDTH, self.hand_position[1] * SCREEN_HEIGHT)
+            self.grab_item.body.angle = -self.hand_angle
+            self.grab_item.filter = pymunk.ShapeFilter(categories=1, mask=1)
+            self.grab_item.body.velocity_func = lambda body, gravity, damping, dt: (0, 0)
+
+
 
     async def capture(self):
         while self.app.is_running:
-            ret, self.frame = self.cap.read()
+            _, self.frame = self.cap.read()
             if self.frame is not None:
                 self.process_frame(self.frame)
 
@@ -245,3 +300,24 @@ class Level(Scene):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 self.thread.join()
+        if event.type == SPAWN_ITEM:
+            self.spawn_item = self.get_random_item(self.spawn_position[0] + 200, self.spawn_position[1] + 100)
+            self.spawn_item.shape.filter = pymunk.ShapeFilter(categories=100, mask=100)
+            self.spawn_item.body.velocity_func = lambda body, gravity, damping, dt: (0, 0)
+            self.add_dynamic_item(self.spawn_item)
+        if event.type == GRAB:
+            if self.is_grabbing:
+                for item in self.item_list:
+                    if not isinstance(item, Container):
+                        dist = item.shape.point_query((-self.hand_position[0] * SCREEN_WIDTH + SCREEN_WIDTH, self.hand_position[1] * SCREEN_HEIGHT))
+                        if dist.distance < 0.1:
+                            self.grab_item = item
+        if event.type == DROP:
+            if self.grab_item is not None:
+                # gravity function
+                self.grab_item.body.velocity_func = lambda body, gravity, damping, dt: pymunk.Body.update_velocity(body, gravity, damping, dt)
+                self.grab_item = None
+            # self.spawn_item.body.position = (-self.hand_position[0] * SCREEN_WIDTH + SCREEN_WIDTH, self.hand_position[1] * SCREEN_HEIGHT)
+            # self.spawn_item.shape.filter = pymunk.ShapeFilter(categories=1, mask=1)
+            # self.spawn_item.body.velocity_func = lambda body, gravity, damping, dt: (0, 0)
+            # self.spawn_item.body.angle = -self.hand_angle

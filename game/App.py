@@ -1,5 +1,6 @@
 import numpy as np
 import pygame
+import traceback
 
 
 from game.scenes.Scene import Scene
@@ -41,19 +42,23 @@ class App:
 
     def run(self):
         self.is_running = True
-        while self.is_running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.is_running = False
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
+        try:
+            while self.is_running:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
                         self.is_running = False
-                self.scene.on_event(event)
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_ESCAPE:
+                            self.is_running = False
+                    self.scene.on_event(event)
 
-            keys = pygame.key.get_pressed()
+                keys = pygame.key.get_pressed()
 
-            self.update(keys)
-            # fps text
-            pygame.display.set_caption(f"FPS: {self.clock.get_fps():.2f}")
-
+                self.update(keys)
+                # fps text
+                pygame.display.set_caption(f"FPS: {self.clock.get_fps():.2f}")
+        except Exception:
+            traceback.print_exc()
+        finally:
+            self.is_running = False
         pygame.quit()

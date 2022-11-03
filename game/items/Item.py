@@ -14,8 +14,6 @@ class Item(Sprite):
         self.body.position: tuple =(x, y)
         self.x = x
         self.y = y
-        # self.body.velocity: tuple = (vx, vy)
-        # self.body.angular_velocity: float = 0
         self.shape: pymunk.Shape = pymunk.Poly(self.body, self.vertices)
         self.shape.mass: float = 1
         self.shape.color: tuple = (100, 100, 100, 255)
@@ -24,6 +22,7 @@ class Item(Sprite):
         # self.shape.collision_type = 2
         self.bg_color: tuple = bg_color
         self.img = img
+        self.shape.filter = pymunk.ShapeFilter(categories=1, mask=1)
         if img is not None:
             self.surf = img
             self.surf = pygame.transform.scale(self.surf, (img_width, img_height))
