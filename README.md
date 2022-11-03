@@ -40,8 +40,29 @@ Physis Reality es un juego de interactivo con la camara, en el cual deberas cons
 - Materia: Infografia
 - Docente: Ing. Jose Laruta
 
-# Nota de la version ejecutable .exe
+# Pasos de installacion y ejecucion
 
-Para poder ejecutar el juego, se debe tener instalado python >= 3.6 y pygame >= 2.0.0
+## Instalacion
 
-Para ejecutarlo simplemente basta con hacer doble click en el ejecutable .exe
+```bash
+pip install -r requirements.txt
+```
+o
+```bash
+pip3 install -r requirements.txt
+```
+
+
+## Ejecucion
+
+```bash
+
+python main.py
+
+```
+o
+
+```bash
+python3 main.py
+
+```

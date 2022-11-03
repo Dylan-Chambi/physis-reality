@@ -1,9 +1,7 @@
 import mediapipe as mp
 import cv2
-import numpy as np
 import pygame
 import traceback
-import cv2
 
 
 from game.scenes.Scene import Scene

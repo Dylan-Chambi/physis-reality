@@ -1,0 +1,6 @@
+pygame
+pymunk
+mediapipe
+opencv-python
+numpy
+asyncio
