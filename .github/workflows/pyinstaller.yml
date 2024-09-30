@@ -1,0 +1,18 @@
+name: pyinstaller_build
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  pyinstaller-build:
+    runs-on: windows-latest
+    steps:
+      - name: Create Executable
+        uses: sayyid5416/pyinstaller@v1
+        with:
+          python_ver: '3.11'
+          requirements: 'requirements.txt'
+          upload_exe_with_name: 'Physis Reality"
+          options: --onefile, --name "Physis Reality"
