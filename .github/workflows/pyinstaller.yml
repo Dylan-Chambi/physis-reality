@@ -9,11 +9,25 @@ jobs:
   pyinstaller-build:
     runs-on: windows-latest
     steps:
-      - name: Create Executable
-        uses: sayyid5416/pyinstaller@v1
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python_ver: '3.11'
-          requirements: './requirements.txt'
-          spec: './build.spec'
-          upload_exe_with_name: 'Physis Reality'
-          options: --onefile, --name "Physis Reality"
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller --onefile --name "Physis Reality" ./build.spec
+          
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Physis Reality
+          path: dist/Physis\ Reality.exe
