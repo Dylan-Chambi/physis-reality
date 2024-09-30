@@ -14,5 +14,5 @@ jobs:
         with:
           python_ver: '3.11'
           requirements: 'requirements.txt'
-          upload_exe_with_name: 'Physis Reality"
+          upload_exe_with_name: 'Physis Reality'
           options: --onefile, --name "Physis Reality"
