@@ -13,6 +13,7 @@ jobs:
         uses: sayyid5416/pyinstaller@v1
         with:
           python_ver: '3.11'
-          requirements: 'requirements.txt'
+          requirements: './requirements.txt'
+          spec: './build.spec'
           upload_exe_with_name: 'Physis Reality'
           options: --onefile, --name "Physis Reality"
