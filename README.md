@@ -1,8 +1,8 @@
-# 3rd-Partial-Infographic
+# Physis Reality
 
-## Descripcion del juego - Physis Reality
+## Descripcion del juego
 
-Physis Reality es un juego de interactivo con la camara, en el cual deberas construir una torre en base a objetos, pero solo tienes 10 vidas. Si un objeto se cae pierdes una vida. Pero si logras construir una torre que aguante almenos 10 segundos ganas el juego. Para eso tienes que hacer uso de tus manos, la derecha para agarrar y soltar objetos y la izquierda para rotar la plataforma.
+Physis Reality es un juego de interactivo con la cámara, en el cual deberas construir una torre en base a objetos, pero solo tienes 10 vidas. Si un objeto se cae pierdes una vida. Pero si logras construir una torre que aguante almenos 10 segundos ganas el juego. Para eso tienes que hacer uso de tus manos, la derecha para agarrar y soltar objetos y la izquierda para rotar la plataforma.
 
 ## Controles
 
