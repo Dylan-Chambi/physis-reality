@@ -30,4 +30,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Physis Reality
-          path: dist/Physis\ Reality.exe
+          path: ./dist
